@@ -1,0 +1,25 @@
+Server functions
+1. /image (POST)
+    - Accepts a file field named file (multipart/form-data).
+
+    - Saves the raw upload to YOLOv5/uploads/.
+
+    - Runs YOLOv5 inference with the thresholds in server/settings.py (CONF_THRESH, IOU_THRESH, IMG_SIZE, DEVICE).
+
+    - Applies the repo-style heuristic (in server/heuristics.py):
+
+    - Prefer the largest bounding box that is not "marker".
+
+    - If the only detections are "marker", pick the highest-confidence one.
+
+    - Converts YOLO class codes to the labels (in server/utils.py):
+
+        11..19 → "1".."9"
+
+        20..40 → "A".."U"
+
+        "marker" → "marker"
+
+    - Saves an annotated preview under YOLOv5/runs/<date>/<unique>/image.jpg (served by /runs/...).
+
+    - Returns a minimal JSON (aligned with the MDP client in that repo):
