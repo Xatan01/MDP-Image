@@ -1,15 +1,5 @@
 1. Create a venv 
 2. Install dependencies
-    "fastapi[standard]"
-    setuptools
-    ultralytics
-    pillow
-    pandas
-    numpy
-    torch
-    torchvision
-    torchaudio
-    tqdm
 3. Run the app
     cd YOLOv5
     uvicorn app:app --host 127.0.0.1 --port 5000 --reload
