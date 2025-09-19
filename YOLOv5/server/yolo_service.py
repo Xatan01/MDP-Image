@@ -32,10 +32,13 @@ def _load_model() -> Any:
 MODEL = _load_model()
 
 def run_inference(pil_img: Image.Image):
-    """Return (pandas df, results) for a single PIL image."""
     with model_lock:
         results = MODEL(pil_img, size=IMG_SIZE)
-    return results.pandas().xyxy[0], results
+
+    df = results.pandas().xyxy[0]
+    df = df.rename(columns={"class": "target_id"})   # ✅ only rename, don’t drop xmin,ymin,etc
+
+    return df, results
 
 def save_annotated(results, out_parent: Path) -> Path:
     """Save annotated image to runs/YYYYMMDD/<stem>/ and return absolute path."""

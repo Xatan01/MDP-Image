@@ -37,16 +37,19 @@ def infer_image(file: UploadFile = File(...)) -> JSONResponse:
     # run YOLO
     df, results = run_inference(pil_img)
 
-    # choose final label using repo-like heuristic
-    label = pick_label_from_detections(df) or "unknown"
+    # pick most confident detection → use 'name' directly (the dataset label like "11".."40")
+    if df is not None and not df.empty:
+        best = df.loc[df["confidence"].idxmax()]
+        number = int(best["name"])   # ✅ always returns 11–40
+    else:
+        number = -1                  # or "unknown" if you prefer strings
 
-    # save annotated preview
-    saved = save_annotated(results, RUNS_DIR / upload_path.stem[:8])  # subfolder by day prefix
-    # (client in repo doesn’t need annotated URL, but nice to have)
+    # save annotated preview locally
+    saved = save_annotated(results, RUNS_DIR / upload_path.stem[:8])
     _ = saved  # not returned to keep payload minimal
 
-    # repo-shaped payload
-    return JSONResponse({"image_id": label, "obstacle_id": 1})
+    # final API response
+    return JSONResponse({"image_id": number, "obstacle_id": 1})
 
 @app.post("/stitch")
 def stitch() -> JSONResponse:
