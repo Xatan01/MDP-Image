@@ -1,10 +1,10 @@
-  "fastapi[standard]"
-    setuptools
-    ultralytics
-    pillow
-    pandas
-    numpy
-    torch
-    torchvision
-    torchaudio
-    tqdm
+fastapi[standard]
+setuptools
+ultralytics
+pillow
+pandas
+numpy
+torch
+torchvision
+torchaudio
+tqdm

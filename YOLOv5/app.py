@@ -49,7 +49,7 @@ def infer_image(file: UploadFile = File(...)) -> JSONResponse:
     _ = saved  # not returned to keep payload minimal
 
     # final API response
-    return JSONResponse({"image_id": number, "obstacle_id": 1})
+    return JSONResponse({"target": number, "obstacle_id": 1})
 
 @app.post("/stitch")
 def stitch() -> JSONResponse:
