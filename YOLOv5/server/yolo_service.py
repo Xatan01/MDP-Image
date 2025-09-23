@@ -41,12 +41,14 @@ def run_inference(pil_img: Image.Image):
     return df, results
 
 def save_annotated(results, out_parent: Path) -> Path:
-    """Save annotated image to runs/YYYYMMDD/<stem>/ and return absolute path."""
-    stem = unique_stem()
-    out_dir = out_parent / stem
-    out_dir.mkdir(parents=True, exist_ok=True)
+    """Save annotated image directly into runs/ without creating timestamp folders."""
+    out_parent.mkdir(parents=True, exist_ok=True)
+    out_file = out_parent / "image0.jpg"
     with model_lock:
-        results.save(save_dir=str(out_dir))
-    # pick first jpg saved by YOLO
-    jpgs = list(out_dir.glob("*.jpg"))
-    return jpgs[0] if jpgs else out_dir
+        results.save(save_dir=str(out_parent))
+    # rename/move YOLO's default save to overwrite consistently
+    saved = list(out_parent.glob("*.jpg"))
+    if saved:
+        saved[0].rename(out_file)
+        return out_file
+    return out_parent
