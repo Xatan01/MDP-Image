@@ -37,16 +37,22 @@ def infer_image(file: UploadFile = File(...)) -> JSONResponse:
     # run YOLO
     df, results = run_inference(pil_img)
 
-    # pick most confident detection → use 'name' directly (the dataset label like "11".."40")
+    # pick most confident detection
     if df is not None and not df.empty:
         best = df.loc[df["confidence"].idxmax()]
-        number = int(best["name"])   # ✅ always returns 11–40
+        label = str(best["name"])  # always a string
+
+        if label.isdigit():
+            number = int(label)  # numeric class names
+        elif label.lower() == "marker":
+            number = "BULLSEYE"  # special case
+        else:
+            number = -1          # unknown / unsupported
     else:
-        number = -1                  # or "unknown" if you prefer strings
+        number = -1
 
     # save annotated preview locally
-    saved = save_annotated(results, RUNS_DIR / upload_path.stem[:8])
-    _ = saved  # not returned to keep payload minimal
+    save_annotated(results, RUNS_DIR / upload_path.stem[:8])
 
     # final API response
     return JSONResponse({"target": number, "obstacle_id": 1})
