@@ -45,62 +45,64 @@ def run_inference(pil_img: Image.Image):
 
 def save_annotated(results, out_parent: Path) -> Path:
     """
-    Save YOLO annotated image + add a compact legend box in the true top-right corner.
-    Shows label + id only (no confidence).
+    Save YOLO annotated image + add one compact legend box in the top-right corner.
+    Shows exactly two lines: label + id (light font, compact box).
     """
     out_parent.mkdir(parents=True, exist_ok=True)
     out_file = out_parent / "image0.jpg"
 
-    # Base image (YOLO annotated with its magenta tags)
+    # Render YOLO detections (boxes only)
     img = np.squeeze(results.render()[0])
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
     df = results.pandas().xyxy[0]
     h, w, _ = img.shape
 
-    # ---- Collect all detection labels ----
-    lines = []
-    for _, row in df.iterrows():
-        cls = str(row["name"])
-        label, image_id = LEGEND.get(cls, (cls, None))
-        if image_id is not None:
-            lines.append(f"{label} (id={image_id})")
-        else:
-            lines.append(label)
-
-    if not lines:
+    # Pick the most confident detection
+    if df is None or df.empty:
         cv2.imwrite(str(out_file), img)
         return out_file
 
-    # ---- Calculate box size ----
+    best = df.loc[df["confidence"].idxmax()]
+    cls = str(best["name"])
+    label, image_id = LEGEND.get(cls, (cls, None))
+
+    if image_id is None:
+        cv2.imwrite(str(out_file), img)
+        return out_file
+
+    # Two lines of text
+    text_top = f"{label}"
+    text_bottom = f"id={image_id}"
+
+    # Font settings (lighter + smaller)
     font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 0.5
-    thickness = 1
-    margin = 5
-    line_height = 18
+    font_scale = 0.5   # smaller
+    thickness = 1      # thinner
+    margin = 4
+    line_height = 16   # tighter spacing
 
-    text_width = 0
-    for line in lines:
-        (tw, _), _ = cv2.getTextSize(line, font, font_scale, thickness)
-        text_width = max(text_width, tw)
+    # Get text sizes
+    (w1, h1), _ = cv2.getTextSize(text_top, font, font_scale, thickness)
+    (w2, h2), _ = cv2.getTextSize(text_bottom, font, font_scale, thickness)
 
-    box_w = text_width + margin * 2
-    box_h = line_height * len(lines) + margin * 2
+    box_w = max(w1, w2) + margin * 2
+    box_h = h1 + h2 + line_height
 
-    # ---- Top-right position ----
-    x0, y0 = w - box_w - 5, 5
-    x1, y1 = w - 5, 5 + box_h
+    # Position box in top-right corner
+    x0, y0 = w - box_w - 10, 10
+    x1, y1 = x0 + box_w, y0 + box_h
 
-    # ---- Draw white rectangle ----
+    # Draw filled white rectangle + border
     cv2.rectangle(img, (x0, y0), (x1, y1), (255, 255, 255), -1)
     cv2.rectangle(img, (x0, y0), (x1, y1), (0, 0, 0), 1)
 
-    # ---- Write text lines ----
-    y_text = y0 + margin + 12
-    for line in lines:
-        cv2.putText(img, line, (x0 + margin, y_text),
-                    font, font_scale, (0, 0, 0), thickness)
-        y_text += line_height
+    # Draw text lines
+    y_text = y0 + margin + h1
+    cv2.putText(img, text_top, (x0 + margin, y_text),
+                font, font_scale, (0, 0, 0), thickness)
+    cv2.putText(img, text_bottom, (x0 + margin, y_text + line_height),
+                font, font_scale, (0, 0, 0), thickness)
 
     cv2.imwrite(str(out_file), img)
     return out_file
