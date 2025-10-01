@@ -4,7 +4,9 @@ from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from PIL import Image
+import os
 
 from server.settings import (SRV_DIR, RUNS_DIR, UPLOADS_DIR, IMG_SIZE,
                              CONF_THRESH, IOU_THRESH, DEVICE, WEIGHTS_PATH)
@@ -64,3 +66,21 @@ def stitch() -> JSONResponse:
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return JSONResponse({"stitched_path": f"/runs/{out.name}", "count": 3})
+
+@app.get("/gallery", response_class=HTMLResponse)
+def gallery():
+    # look inside RUNS_DIR for saved images
+    image_urls = []
+    for root, _, files in os.walk(RUNS_DIR):
+        for file in files:
+            if file.endswith((".jpg", ".png")):
+                rel_path = os.path.relpath(os.path.join(root, file), RUNS_DIR)
+                image_urls.append(f"/runs/{rel_path}")
+
+    # build HTML grid
+    html_content = "<html><body><h2>Inference Results</h2><div style='display:flex;flex-wrap:wrap;'>"
+    for url in image_urls:
+        html_content += f"<div style='margin:5px;'><img src='{url}' width='300'></div>"
+    html_content += "</div></body></html>"
+
+    return HTMLResponse(content=html_content)
