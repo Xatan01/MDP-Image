@@ -2,6 +2,9 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 from typing import Any, Tuple
+import numpy as np
+import cv2
+from .legend import LEGEND
 
 import torch
 from PIL import Image
@@ -41,14 +44,63 @@ def run_inference(pil_img: Image.Image):
     return df, results
 
 def save_annotated(results, out_parent: Path) -> Path:
-    """Save annotated image directly into runs/ without creating timestamp folders."""
+    """
+    Save YOLO annotated image + add a compact legend box in the true top-right corner.
+    Shows label + id only (no confidence).
+    """
     out_parent.mkdir(parents=True, exist_ok=True)
     out_file = out_parent / "image0.jpg"
-    with model_lock:
-        results.save(save_dir=str(out_parent))
-    # rename/move YOLO's default save to overwrite consistently
-    saved = list(out_parent.glob("*.jpg"))
-    if saved:
-        saved[0].rename(out_file)
+
+    # Base image (YOLO annotated with its magenta tags)
+    img = np.squeeze(results.render()[0])
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+    df = results.pandas().xyxy[0]
+    h, w, _ = img.shape
+
+    # ---- Collect all detection labels ----
+    lines = []
+    for _, row in df.iterrows():
+        cls = str(row["name"])
+        label, image_id = LEGEND.get(cls, (cls, None))
+        if image_id is not None:
+            lines.append(f"{label} (id={image_id})")
+        else:
+            lines.append(label)
+
+    if not lines:
+        cv2.imwrite(str(out_file), img)
         return out_file
-    return out_parent
+
+    # ---- Calculate box size ----
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.5
+    thickness = 1
+    margin = 5
+    line_height = 18
+
+    text_width = 0
+    for line in lines:
+        (tw, _), _ = cv2.getTextSize(line, font, font_scale, thickness)
+        text_width = max(text_width, tw)
+
+    box_w = text_width + margin * 2
+    box_h = line_height * len(lines) + margin * 2
+
+    # ---- Top-right position ----
+    x0, y0 = w - box_w - 5, 5
+    x1, y1 = w - 5, 5 + box_h
+
+    # ---- Draw white rectangle ----
+    cv2.rectangle(img, (x0, y0), (x1, y1), (255, 255, 255), -1)
+    cv2.rectangle(img, (x0, y0), (x1, y1), (0, 0, 0), 1)
+
+    # ---- Write text lines ----
+    y_text = y0 + margin + 12
+    for line in lines:
+        cv2.putText(img, line, (x0 + margin, y_text),
+                    font, font_scale, (0, 0, 0), thickness)
+        y_text += line_height
+
+    cv2.imwrite(str(out_file), img)
+    return out_file

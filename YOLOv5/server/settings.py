@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 # Base dirs
-SRV_DIR: Path = Path(__file__).resolve().parent.parent   # .../YOLOv5
+SRV_DIR: Path = Path(__file__).resolve().parent   # .../YOLOv5
 ROOT:    Path = SRV_DIR.parent                           # .../MDP
 
 # Runtime config (env or defaults)
@@ -29,7 +29,7 @@ def resolve_weights() -> Path:
             return p
         raise RuntimeError(f"WEIGHTS_PATH set but not found: {p}")
 
-    for c in [SRV_DIR / "weights" / "best.pt", ROOT / "Weights" / "best.pt", ROOT / "weights" / "best.pt"]:
+    for c in [SRV_DIR / "weights" / "best.pt", ROOT / "Weights" / "best.pt", ROOT / "weights" / "best.pt", ROOT.parent / "Weights" / "best.pt"]:
         if c.exists():
             return c.resolve()
 
