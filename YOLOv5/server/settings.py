@@ -16,8 +16,8 @@ DEVICE      = os.environ.get("DEVICE", "cuda:0" if os.environ.get("CUDA_VISIBLE_
 HUB_FORCE_RELOAD = os.environ.get("HUB_FORCE_RELOAD", "1") not in ("0", "false", "False", "")
 
 # Folders
-UPLOADS_DIR = SRV_DIR / "uploads"
-RUNS_DIR    = SRV_DIR / "runs"
+UPLOADS_DIR = ROOT / "uploads"
+RUNS_DIR    = ROOT / "runs"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
