@@ -39,7 +39,10 @@ def run_inference(pil_img: Image.Image):
         results = MODEL(pil_img, size=IMG_SIZE)
 
     df = results.pandas().xyxy[0]
-    df = df.rename(columns={"class": "target_id"})   # ✅ only rename, don’t drop xmin,ymin,etc
+    df = df.rename(columns={"class": "target_id"})
+
+    # Drop unwanted classes
+    df = df[~df["name"].isin(["bullseye", "marker"])]
 
     return df, results
 
@@ -48,6 +51,7 @@ def save_annotated(results, out_parent: Path) -> Path:
     Save YOLO annotated image + compact legend box in top-right corner.
     Shows all detections, each line: 'label (id=XX)'.
     Creates new exp/exp2/exp3/... folders like YOLOv5.
+    Auto-increments image filenames inside each exp folder (image0, image1, ...).
     """
 
     # ---- Ensure parent dir exists ----
@@ -63,7 +67,10 @@ def save_annotated(results, out_parent: Path) -> Path:
             break
         exp_id += 1
 
-    out_file = exp_dir / "image0.jpg"
+    # ---- Pick next available filename inside exp_dir ----
+    files = list(exp_dir.glob("*.jpg"))
+    next_id = len(files)
+    out_file = exp_dir / f"image{next_id}.jpg"
 
     # ---- Render YOLO detections ----
     img = np.squeeze(results.render()[0])
