@@ -52,7 +52,7 @@ def infer_image(file: UploadFile = File(...)) -> JSONResponse:
         if label.isdigit():
             number = int(label)  # numeric class names
         elif label.lower() == "marker":
-            number = "BULLSEYE"  # special case
+            number = -1  # special case
         else:
             number = -1          # unknown / unsupported
     else:
