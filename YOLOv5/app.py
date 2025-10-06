@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from PIL import Image
 import os
+from datetime import datetime  # ✅ added for unique filenames
 
 from server.settings import (SRV_DIR, RUNS_DIR, UPLOADS_DIR, IMG_SIZE,
                              CONF_THRESH, IOU_THRESH, DEVICE, WEIGHTS_PATH)
@@ -17,6 +18,7 @@ from server.stitcher import stitch_recent_uploads
 
 app = FastAPI(title="MDP YOLOv5 Inference Server", version="1.0.0")
 app.mount("/runs", StaticFiles(directory=str(RUNS_DIR)), name="runs")
+
 
 @app.get("/health")
 def health() -> Dict[str, Any]:
@@ -29,19 +31,22 @@ def health() -> Dict[str, Any]:
         "iou": IOU_THRESH,
     }
 
+
 @app.post("/image")
 def infer_image(file: UploadFile = File(...)) -> JSONResponse:
-    # save raw upload
+    # save raw upload with unique timestamp name
     pil_img: Image.Image = read_pil(file)
-    upload_path = UPLOADS_DIR / f"{file.filename or 'upload'}.jpg"
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    upload_path = UPLOADS_DIR / f"upload_{ts}.jpg"
     pil_img.save(upload_path, quality=95)
 
     # run YOLO
     df, results = run_inference(pil_img)
 
-    # pick most confident detection
+    # pick largest bounding box (after YOLO confidence/IOU filtering)
     if df is not None and not df.empty:
-        best = df.loc[df["confidence"].idxmax()]
+        df["area"] = (df["xmax"] - df["xmin"]) * (df["ymax"] - df["ymin"])
+        best = df.loc[df["area"].idxmax()]
         label = str(best["name"])  # always a string
 
         if label.isdigit():
@@ -59,6 +64,7 @@ def infer_image(file: UploadFile = File(...)) -> JSONResponse:
     # final API response
     return JSONResponse({"target": number, "obstacle_id": 1})
 
+
 @app.post("/stitch")
 def stitch() -> JSONResponse:
     try:
@@ -66,6 +72,7 @@ def stitch() -> JSONResponse:
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return JSONResponse({"stitched_path": f"/runs/{out.name}", "count": 3})
+
 
 @app.get("/gallery", response_class=HTMLResponse)
 def gallery():
