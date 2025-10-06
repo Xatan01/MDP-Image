@@ -54,10 +54,10 @@ def save_annotated(results, out_parent: Path) -> Path:
     Auto-increments image filenames inside each exp folder (image0, image1, ...).
     """
 
-    # ---- Ensure parent dir exists ----
+    # Ensure parent dir exists
     out_parent.mkdir(parents=True, exist_ok=True)
 
-    # ---- Create next exp folder (exp, exp2, exp3, …) ----
+    # Create next exp folder (exp, exp2, exp3, …) 
     exp_id = 0
     while True:
         exp_name = "exp" if exp_id == 0 else f"exp{exp_id}"
@@ -67,19 +67,19 @@ def save_annotated(results, out_parent: Path) -> Path:
             break
         exp_id += 1
 
-    # ---- Pick next available filename inside exp_dir ----
+    # Pick next available filename inside exp_dir 
     files = list(exp_dir.glob("*.jpg"))
     next_id = len(files)
     out_file = exp_dir / f"image{next_id}.jpg"
 
-    # ---- Render YOLO detections ----
+    # Render YOLO detections 
     img = np.squeeze(results.render()[0])
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
     df = results.pandas().xyxy[0]
     h, w, _ = img.shape
 
-    # ---- Collect detection labels ----
+    # Collect detection labels 
     lines = []
     if df is not None and not df.empty:
         for _, row in df.iterrows():
@@ -90,19 +90,19 @@ def save_annotated(results, out_parent: Path) -> Path:
             else:
                 lines.append(label)
 
-    # ---- If no detections, just save image ----
+    # If no detections, just save image 
     if not lines:
         cv2.imwrite(str(out_file), img)
         return out_file
 
-    # ---- Font settings ----
+    # Font settings 
     font = cv2.FONT_HERSHEY_SIMPLEX
     font_scale = 0.5
     thickness = 1
     margin = 4
     line_height = 16
 
-    # ---- Compute box size ----
+    # Compute box size
     text_width = 0
     for line in lines:
         (tw, _), _ = cv2.getTextSize(line, font, font_scale, thickness)
@@ -111,21 +111,21 @@ def save_annotated(results, out_parent: Path) -> Path:
     box_w = text_width + margin * 2
     box_h = line_height * len(lines) + margin * 2
 
-    # ---- Position top-right ----
+    # Position top-right 
     x0, y0 = w - box_w - 10, 10
     x1, y1 = x0 + box_w, y0 + box_h
 
-    # ---- Draw background box ----
+    # Draw background box 
     cv2.rectangle(img, (x0, y0), (x1, y1), (255, 255, 255), -1)
     cv2.rectangle(img, (x0, y0), (x1, y1), (0, 0, 0), 1)
 
-    # ---- Draw text lines ----
+    # Draw text lines 
     y_text = y0 + margin + 12
     for line in lines:
         cv2.putText(img, line, (x0 + margin, y_text),
                     font, font_scale, (0, 0, 0), thickness)
         y_text += line_height
 
-    # ---- Save file ----
+    # Save file
     cv2.imwrite(str(out_file), img)
     return out_file
