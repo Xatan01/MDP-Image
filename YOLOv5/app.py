@@ -18,6 +18,7 @@ from server.stitcher import stitch_recent_uploads
 
 app = FastAPI(title="MDP YOLOv5 Inference Server", version="1.0.0")
 app.mount("/runs", StaticFiles(directory=str(RUNS_DIR)), name="runs")
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
 @app.get("/health")
@@ -76,18 +77,53 @@ def stitch() -> JSONResponse:
 
 @app.get("/gallery", response_class=HTMLResponse)
 def gallery():
-    # look inside RUNS_DIR for saved images
-    image_urls = []
+    """
+    Display RAW (from uploads) and YOLO-annotated (from runs) images side-by-side.
+    One row per obstacle.
+    """
+
+    # Collect RAW image filenames
+    raw_files = sorted([f for f in os.listdir(UPLOADS_DIR) if f.endswith((".jpg", ".png"))])
+
+    # Collect YOLO-annotated image filenames
+    run_files = []
     for root, _, files in os.walk(RUNS_DIR):
-        for file in files:
-            if file.endswith((".jpg", ".png")):
-                rel_path = os.path.relpath(os.path.join(root, file), RUNS_DIR)
-                image_urls.append(f"/runs/{rel_path}")
+        for f in files:
+            if f.endswith((".jpg", ".png")):
+                rel_path = os.path.relpath(os.path.join(root, f), RUNS_DIR)
+                run_files.append(rel_path)
+    run_files.sort()
 
-    # build HTML grid
-    html_content = "<html><body><h2>Inference Results</h2><div style='display:flex;flex-wrap:wrap;'>"
-    for url in image_urls:
-        html_content += f"<div style='margin:5px;'><img src='{url}' width='300'></div>"
-    html_content += "</div></body></html>"
+    # Pair them roughly by order (assuming same upload order)
+    pairs = list(zip(raw_files, run_files))
 
-    return HTMLResponse(content=html_content)
+    # Build HTML
+    html = """
+    <html>
+    <body style="background-color:#e6f2ff; font-family:Arial, sans-serif;">
+    <h2>Task 1 — Image Recognition Results</h2>
+    <p>Each row shows the RAW camera image (left) and the YOLO-detected result (right).</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+    """
+
+    for idx, (raw, ann) in enumerate(pairs):
+        html += f"""
+        <div style="display:flex;flex-direction:column;align-items:center;margin:10px;
+                    background:#fff;padding:8px;border-radius:8px;
+                    box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+            <p><b>Obstacle {idx+1}</b></p>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <div>
+                    <img src="/uploads/{raw}" width="300" style="border:1px solid #ccc;">
+                    <p style="text-align:center;margin:4px 0;">RAW Image</p>
+                </div>
+                <div>
+                    <img src="/runs/{ann}" width="300" style="border:2px solid #000;">
+                    <p style="text-align:center;margin:4px 0;">Annotated Result</p>
+                </div>
+            </div>
+        </div>
+        """
+
+    html += "</div></body></html>"
+    return HTMLResponse(content=html)
