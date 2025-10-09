@@ -46,30 +46,15 @@ def run_inference(pil_img: Image.Image):
 
     return df, results
 
-def save_annotated(results, out_parent: Path) -> Path:
+def save_annotated(results, out_path: Path) -> Path:
     """
-    Save YOLO annotated image + compact legend box in top-right corner.
-    Shows only the largest detection (same one used in API).
-    Creates new exp/exp2/exp3/... folders like YOLOv5.
+    Save YOLO annotated image directly using provided output path.
+    No experiment folders, no auto-numbering.
+    Example:
+      /runs/capture_1.jpg
     """
 
-    # Ensure parent dir exists
-    out_parent.mkdir(parents=True, exist_ok=True)
-
-    # Create next exp folder (exp, exp2, exp3, …)
-    exp_id = 0
-    while True:
-        exp_name = "exp" if exp_id == 0 else f"exp{exp_id}"
-        exp_dir = out_parent / exp_name
-        if not exp_dir.exists():
-            exp_dir.mkdir(parents=True, exist_ok=True)
-            break
-        exp_id += 1
-
-    # Auto-increment filenames inside exp folder
-    files = list(exp_dir.glob("*.jpg"))
-    next_id = len(files)
-    out_file = exp_dir / f"image{next_id}.jpg"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Render YOLO detections
     img = np.squeeze(results.render()[0])
@@ -80,18 +65,18 @@ def save_annotated(results, out_parent: Path) -> Path:
 
     # ---- Pick the largest bounding box ----
     if df is None or df.empty:
-        cv2.imwrite(str(out_file), img)
-        return out_file
+        cv2.imwrite(str(out_path), img)
+        return out_path
 
     df["area"] = (df["xmax"] - df["xmin"]) * (df["ymax"] - df["ymin"])
-    best = df.loc[df["area"].idxmax()]  # largest area box
+    best = df.loc[df["area"].idxmax()]
     cls = str(best["name"])
     label, image_id = LEGEND.get(cls, (cls, None))
 
     # ---- If label not mapped, just save ----
     if image_id is None:
-        cv2.imwrite(str(out_file), img)
-        return out_file
+        cv2.imwrite(str(out_path), img)
+        return out_path
 
     # ---- Text setup ----
     text_top = f"{label}"
@@ -125,5 +110,5 @@ def save_annotated(results, out_parent: Path) -> Path:
                 font, font_scale, (0, 0, 0), thickness)
 
     # ---- Save ----
-    cv2.imwrite(str(out_file), img)
-    return out_file
+    cv2.imwrite(str(out_path), img)
+    return out_path
