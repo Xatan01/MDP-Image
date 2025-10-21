@@ -41,42 +41,39 @@ def run_inference(pil_img: Image.Image):
     df = results.pandas().xyxy[0]
     df = df.rename(columns={"class": "target_id"})
 
-    # Keep only classes whose name is "38" or "39"
-    df = df[df["name"].isin(["38", "39"])]
+    # Drop unwanted classes
+    df = df[~df["name"].isin(["bullseye", "marker"])]
 
     return df, results
 
 def save_annotated(results, out_path: Path) -> Path:
     """
     Save YOLO annotated image directly using provided output path.
-    Only keeps and labels classes "38" or "39".
+    No experiment folders, no auto-numbering.
+    Example:
+      /runs/capture_1.jpg
     """
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Render YOLO detections (YOLO's internal draw)
+    # Render YOLO detections
     img = np.squeeze(results.render()[0])
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-    # Extract dataframe
     df = results.pandas().xyxy[0]
+    h, w, _ = img.shape
 
-    # ✅ Keep only "38" and "39"
-    df = df[df["name"].isin(["38", "39"])]
-
-    # ---- If none exist, just save the plain YOLO-rendered image ----
-    if df.empty:
+    # ---- Pick the largest bounding box ----
+    if df is None or df.empty:
         cv2.imwrite(str(out_path), img)
         return out_path
 
-    # ---- Pick the largest bounding box among 38/39 ----
     df["area"] = (df["xmax"] - df["xmin"]) * (df["ymax"] - df["ymin"])
     best = df.loc[df["area"].idxmax()]
-
     cls = str(best["name"])
     label, image_id = LEGEND.get(cls, (cls, None))
 
-    # ---- Skip if label not found in LEGEND ----
+    # ---- If label not mapped, just save ----
     if image_id is None:
         cv2.imwrite(str(out_path), img)
         return out_path
@@ -98,7 +95,6 @@ def save_annotated(results, out_path: Path) -> Path:
     box_h = h1 + h2 + line_height
 
     # ---- Position box (top-right) ----
-    h, w, _ = img.shape
     x0, y0 = w - box_w - 10, 10
     x1, y1 = x0 + box_w, y0 + box_h
 
