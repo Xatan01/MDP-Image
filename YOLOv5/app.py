@@ -14,8 +14,6 @@ from server.settings import (SRV_DIR, RUNS_DIR, UPLOADS_DIR, IMG_SIZE,
                              CONF_THRESH, IOU_THRESH, DEVICE, WEIGHTS_PATH)
 from server.utils import read_pil
 from server.yolo_service import run_inference, save_annotated
-from server.heuristics import pick_label_from_detections
-from server.stitcher import stitch_recent_uploads
 
 app = FastAPI(title="MDP YOLOv5 Inference Server", version="1.0.0")
 app.mount("/runs", StaticFiles(directory=str(RUNS_DIR)), name="runs")
@@ -40,7 +38,7 @@ def infer_image(file: UploadFile = File(...)) -> JSONResponse:
     # read uploaded image
     pil_img: Image.Image = read_pil(file)
 
-    # ✅ Save using the original uploaded filename (e.g. capture_1.jpg)
+    # Save using the original uploaded filename (e.g. capture_1.jpg)
     upload_path = UPLOADS_DIR / file.filename
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     pil_img.save(upload_path, quality=95)
@@ -63,19 +61,11 @@ def infer_image(file: UploadFile = File(...)) -> JSONResponse:
     else:
         number = -1
 
-    # ✅ Save annotated image directly to /runs with the same name (no exp folders)
+    # Save annotated image directly to /runs with the same name (no exp folders)
     save_annotated(results, RUNS_DIR / file.filename)
 
     # final API response
     return JSONResponse({"target": number, "obstacle_id": 1})
-
-@app.post("/stitch")
-def stitch() -> JSONResponse:
-    try:
-        out = stitch_recent_uploads(k=3)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return JSONResponse({"stitched_path": f"/runs/{out.name}", "count": 3})
 
 
 @app.get("/gallery", response_class=HTMLResponse)

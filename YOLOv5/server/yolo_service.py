@@ -63,7 +63,7 @@ def save_annotated(results, out_path: Path) -> Path:
     df = results.pandas().xyxy[0]
     h, w, _ = img.shape
 
-    # ---- Pick the largest bounding box ----
+    # Pick the largest bounding box 
     if df is None or df.empty:
         cv2.imwrite(str(out_path), img)
         return out_path
@@ -73,12 +73,12 @@ def save_annotated(results, out_path: Path) -> Path:
     cls = str(best["name"])
     label, image_id = LEGEND.get(cls, (cls, None))
 
-    # ---- If label not mapped, just save ----
+    # If label not mapped, just save 
     if image_id is None:
         cv2.imwrite(str(out_path), img)
         return out_path
 
-    # ---- Text setup ----
+    # Text setup
     text_top = f"{label}"
     text_bottom = f"id={image_id}"
 
@@ -88,27 +88,27 @@ def save_annotated(results, out_path: Path) -> Path:
     margin = 4
     line_height = 16
 
-    # ---- Compute box size ----
+    # Compute box size
     (w1, h1), _ = cv2.getTextSize(text_top, font, font_scale, thickness)
     (w2, h2), _ = cv2.getTextSize(text_bottom, font, font_scale, thickness)
     box_w = max(w1, w2) + margin * 2
     box_h = h1 + h2 + line_height
 
-    # ---- Position box (top-right) ----
+    # Position box (top-right) 
     x0, y0 = w - box_w - 10, 10
     x1, y1 = x0 + box_w, y0 + box_h
 
-    # ---- Draw background ----
+    # Draw background 
     cv2.rectangle(img, (x0, y0), (x1, y1), (255, 255, 255), -1)
     cv2.rectangle(img, (x0, y0), (x1, y1), (0, 0, 0), 1)
 
-    # ---- Draw text ----
+    # Draw text 
     y_text = y0 + margin + h1
     cv2.putText(img, text_top, (x0 + margin, y_text),
                 font, font_scale, (0, 0, 0), thickness)
     cv2.putText(img, text_bottom, (x0 + margin, y_text + line_height),
                 font, font_scale, (0, 0, 0), thickness)
 
-    # ---- Save ----
+    # Save 
     cv2.imwrite(str(out_path), img)
     return out_path

@@ -5,8 +5,8 @@ import os
 from pathlib import Path
 
 # Base dirs
-SRV_DIR: Path = Path(__file__).resolve().parent   # .../YOLOv5
-ROOT:    Path = SRV_DIR.parent                           # .../MDP
+SRV_DIR: Path = Path(__file__).resolve().parent   
+ROOT:    Path = SRV_DIR.parent                          
 
 # Runtime config (env or defaults)
 IMG_SIZE    = int(os.environ.get("IMG_SIZE", "640"))
